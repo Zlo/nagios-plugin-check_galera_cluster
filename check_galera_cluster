@@ -54,13 +54,8 @@ crit=2
 fcp=0.1
 
 check_executable() {
-	if [ -z "$1" ]; then
-		echo "check_executable: no parameter given!"
-		exit ${ST_UK}
-	fi
-
 	type "${1}" >/dev/null || {
-		echo "UNKNOWN: Cannot find $1"
+		echo "UNKNOWN: Cannot find ${1}"
 		exit ${ST_UK}
 	}
 }
@@ -110,7 +105,7 @@ while getopts 'hvu:p:H:P:w:c:f:m:s:0' OPTION; do
 						stateFile="${OPTARG}"
 						;;
 				?)
-						echo "Unknown argument: $1"
+						echo "Unknown argument: ${1}"
 						print_help
 						exit ${ST_UK}
 						;;
@@ -148,20 +143,47 @@ mysql ${param_mysql} -B -N -e '\s;' >/dev/null 2>&1 || {
 # verify that the node is part of a cluster
 #
 
-rClusterStateUuid=$(mysql ${param_mysql} -B -N -e "show status like 'wsrep_cluster_state_uuid'; "|cut -f 2)
+set -- $(mysql ${param_mysql} -B -N -e "SHOW GLOBAL STATUS LIKE 'wsrep_%';" | sed 's/	/=/')
+
+while [ $# -gt 0 ]
+do
+	key="${1%%=*}"
+	value="${1#*=}"
+	case "${key}"
+	in
+		wsrep_cluster_state_uuid)
+			rClusterStateUuid="${value}"
+			;;
+		wsrep_cluster_size)
+			rClusterSize="${value}"
+			;;
+		wsrep_cluster_status)
+			rClusterStatus="${value}"
+			;;
+		wsrep_flow_control_paused)
+			rFlowControl="${value}"
+			;;
+		wsrep_ready)
+			rReady="${value}"
+			;;
+		wsrep_connected)
+			rConnected="${value}"
+			;;
+		wsrep_local_state_comment)
+			rLocalStateComment="${value}"
+			;;
+		wsrep_incoming_addresses)
+			rIncommingAddresses="${value}"
+			;;
+	esac
+
+	shift
+done
 
 if [ -z "${rClusterStateUuid}" ]; then
 	echo "CRITICAL: node is not part of a cluster"
 	exit ${ST_CR}
 fi
-
-rClusterSize=$(mysql ${param_mysql} -B -N -e "show status like 'wsrep_cluster_size'"|cut -f 2)
-rClusterStatus=$(mysql ${param_mysql} -B -N -e "show status like 'wsrep_cluster_status'"|cut -f 2) # Primary
-rFlowControl=$(mysql ${param_mysql} -B -N -e "show status like 'wsrep_flow_control_paused'"|cut -f 2) # < 0.1
-rReady=$(mysql ${param_mysql} -B -N -e "show status like 'wsrep_ready'"|cut -f 2)  # ON
-rConnected=$(mysql ${param_mysql} -B -N -e "show status like 'wsrep_connected'"|cut -f 2)  # ON
-rLocalStateComment=$(mysql ${param_mysql} -B -N -e "show status like 'wsrep_local_state_comment'"|cut -f 2)  # Synced
-rIncommingAddresses=$(mysql ${param_mysql} -B -N -e "show global status like 'wsrep_incoming_addresses';"|cut -f 2)
 
 if [ -z "${rFlowControl}" ]; then
 	echo "UNKNOWN: wsrep_flow_control_paused is empty"
