@@ -64,52 +64,52 @@ check_executable mysql
 check_executable bc
 
 while getopts 'hvu:p:H:P:w:c:f:m:s:0' OPTION; do
-		case "${OPTION}"
-		in
-				h)
-						print_help
-						exit ${ST_UK}
-						;;
-				v)
-						print_version
-						exit ${ST_UK}
-						;;
-				u)
-						mysqluser="${OPTARG}"
-						;;
-				p)
-						password="${OPTARG}"
-						;;
-				H)
-						mysqlhost="${OPTARG}"
-						;;
-				P)
-						port="${OPTARG}"
-						;;
-				m)
-						myconfig="${OPTARG}"
-						;;
-				w)
-						warn="${OPTARG}"
-						;;
-				c)
-						crit="${OPTARG}"
-						;;
-				f)
-						fcp="${OPTARG}"
-						;;
-				0)
-						primary='TRUE'
-						;;
-				s)
-						stateFile="${OPTARG}"
-						;;
-				?)
-						echo "Unknown argument: ${1}"
-						print_help
-						exit ${ST_UK}
-						;;
-		esac
+	case "${OPTION}"
+	in
+		h)
+			print_help
+			exit ${ST_UK}
+			;;
+		v)
+			print_version
+			exit ${ST_UK}
+			;;
+		u)
+			mysqluser="${OPTARG}"
+			;;
+		p)
+			password="${OPTARG}"
+			;;
+		H)
+			mysqlhost="${OPTARG}"
+			;;
+		P)
+			port="${OPTARG}"
+			;;
+		m)
+			myconfig="${OPTARG}"
+			;;
+		w)
+			warn="${OPTARG}"
+			;;
+		c)
+			crit="${OPTARG}"
+			;;
+		f)
+			fcp="${OPTARG}"
+			;;
+		0)
+			primary='TRUE'
+			;;
+		s)
+			stateFile="${OPTARG}"
+			;;
+		?)
+			echo "Unknown argument: ${1}"
+			print_help
+			exit ${ST_UK}
+			;;
+	esac
 done
 
 if [ -z "${warn}" ]; then
