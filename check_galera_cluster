@@ -69,7 +69,7 @@ check_executable() {
 check_executable mysql
 check_executable bc
 
-while getopts “hvu:p:H:P:w:c:f:m:s:0” OPTION; do
+while getopts 'hvu:p:H:P:w:c:f:m:s:0' OPTION; do
   case $OPTION in
     h)
       print_help
