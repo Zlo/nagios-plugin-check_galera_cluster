@@ -287,21 +287,8 @@ if [ ! -z "${stateFile}" ]; then
 				# there is no state file yet, creating new one.
 				echo "${currentNodes}" | tr " " "\n" > "${stateFile}"
 			fi # -f stateFile
-			# get the number of nodes that were part of the cluster before
-			maxClusterSize=$(wc -l < "${stateFile}")
 
-			if [ "${maxClusterSize}" -eq "${rClusterSize}" ]; then
-				if [ "${maxClusterSize}" -eq 1 ]; then
-					if [ "${crit}" -eq 0 -a "${warn}" -eq 0 ]; then
-						echo "OK: running single-node database cluster"
-					fi
-				else
-					echo "OK: running redundant ${rClusterSize} online / ${maxClusterSize} total"
-				fi
-			else
-				echo "WARNING: redundant ${rClusterSize} online / ${maxClusterSize} total, missing peers: ${missingNodes}" 
-				warnAlerts=$((warnAlerts + 1))
-			fi
+			[ -n "${missingNodes}" ] && echo "Missing nodes: ${missingNodes}"
 		fi # rConnected
 	fi # -w stateFile
 fi # -z stateFile
