@@ -23,7 +23,7 @@ print_help() {
 	echo ""
 	echo "${PROGNAME} is a Nagios plugin to monitor Galera cluster status."
 	echo ""
-	echo "${PROGNAME} [-u USER] [-p PASSWORD] [-H HOST] [-P PORT] [-m file] [-w SIZE] [-c SIZE] [-s statefile] [-f FLOAT] [-0]"
+	echo "${PROGNAME} [-u USER] [-p PASSWORD] [-H HOST] [-P PORT] [-m file] [-w SIZE] [-c SIZE] [-W SIZE] [ -C SIZE] [-s statefile] [-f FLOAT] [-0]"
 	echo ""
 	echo "Options:"
 	echo "	u)"
@@ -40,6 +40,10 @@ print_help() {
 	echo "		Sets minimum number of nodes in the cluster when WARNING is raised. (default is same as critical)."
 	echo "	c)"
 	echo "		Sets minimum number of nodes in the cluster when CRITICAL is raised. (default is 2)."
+	echo "	W)"
+	echo "		Sets minimum number of incoming addresses in the cluster when WARNING is raised. (default is same as critical)."
+	echo "	C)"
+	echo "		Sets minimum number of incoming addresses in the cluster when CRITICAL is raised. (default is 2)."
 	echo "	f)"
 	echo "		Sets critical value of wsrep_flow_control_paused (default is 0.1)."
 	echo "	0)"
@@ -51,6 +55,7 @@ print_help() {
 
 # default values
 crit=2
+inccrit=2
 fcp=0.1
 
 check_executable() {
@@ -63,7 +68,7 @@ check_executable() {
 check_executable mysql
 check_executable bc
 
-while getopts 'hvu:p:H:P:w:c:f:m:s:0' OPTION; do
+while getopts 'hvu:p:H:P:w:c:W:C:f:m:s:0' OPTION; do
 	case "${OPTION}"
 	in
 		h)
@@ -95,6 +100,12 @@ while getopts 'hvu:p:H:P:w:c:f:m:s:0' OPTION; do
 		c)
 			crit="${OPTARG}"
 			;;
+		W)
+			incwarn="${OPTARG}"
+			;;
+		C)
+			inccrit="${OPTARG}"
+			;;
 		f)
 			fcp="${OPTARG}"
 			;;
@@ -112,9 +123,9 @@ while getopts 'hvu:p:H:P:w:c:f:m:s:0' OPTION; do
 	esac
 done
 
-if [ -z "${warn}" ]; then
-	warn="${crit}"
-fi
+[ -z "${warn}" ] && warn="${crit}"
+[ -z "${incwarn}" ] && incwarn="${inccrit}"
+
 
 create_param() {
 	if [ -n "${2}" ]; then
@@ -185,6 +196,9 @@ if [ -z "${rClusterStateUuid}" ]; then
 	exit ${ST_CR}
 fi
 
+set -- $(echo "${rIncommingAddresses}" | tr ',' ' ')
+numInc=$#
+
 if [ -z "${rFlowControl}" ]; then
 	echo "UNKNOWN: wsrep_flow_control_paused is empty"
 	unknAlerts=$((unknAlerts + 1))
@@ -217,20 +231,33 @@ if [ "${rLocalStateComment}" != 'Synced' ]; then
 	 critAlerts=$((criticalAlerts + 1))
 fi
 
-if [ "${rClusterSize}" -gt "${warn}" ]; then
-	# only display the ok message if the state check not enabled
-	if [ -z "${stateFile}" ]; then
-		echo "OK: number of NODES = ${rClusterSize} (wsrep_cluster_size)"
-	fi
-elif [ "${rClusterSize}" -le "${crit}" ]; then
-	echo "CRITICAL: number of NODES = ${rClusterSize} (wsrep_cluster_size)"
+NUMMSG=''
+NUMSTATE=OK
+if [ "${numInc}" -le "${inccrit}" ]; then
 	critAlerts=$((criticalAlerts + 1))
-elif [ "${rClusterSize}" -le "${warn}" ]; then
-	echo "WARNING: number of NODES = ${rClusterSize} (wsrep_cluster_size)"
+	NUMMSG="number of incoming connections = ${numInc} (Crit: ${inccrit})"
+	NUMSTATE=CRITICAL
+elif [ "${numInc}" -le "${incwarn}" ]; then
 	warnAlerts=$((warnAlerts + 1))
+	NUMSTATE=WARNING
+	NUMMSG="number of incoming connections = ${numInc} (Warn: ${incwarn})"
 else
-	exit ${ST_UK}
+	NUMMSG="number of incoming connections = ${numInc} (OK)"
 fi
+
+if [ "${rClusterSize}" -le "${crit}" ]; then
+	critAlerts=$((criticalAlerts + 1))
+	NUMMSG="${NUMMSG}, number of NODES = ${rClusterSize} (Crit: ${crit})"
+	NUMSTATE=CRITICAL
+elif [ "${rClusterSize}" -le "${warn}" ]; then
+	warnAlerts=$((warnAlerts + 1))
+	NUMMSG="${NUMMSG}, number of NODES = ${rClusterSize} (Warn: ${warn})"
+	[ "${NUMSTATE}" = 'OK' ] && NUMSTATE=WARNING
+else
+	NUMMSG="${NUMMSG}, number of NODES = ${rClusterSize} (OK)"
+fi
+
+echo "${NUMSTATE}: ${NUMMSG}"
 
 #
 # detect is the connection is lost automatically
